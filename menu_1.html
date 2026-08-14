@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDO · Danh sách Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#10243F;
+    --surface:#F3F1FF;
+    --card:#FFFFFF;
+    --line:#E7E3F5;
+    --text:#1D2540;
+    --text-mute:#6B6F92;
+    --teal:#0EA99B;
+    --amber:#F0A324;
+    --coral:#FF5D64;
+    --lime:#9AD53A;
+    --purple:#8B5CF6;
+    --blue:#3E8BFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--surface);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:
+      radial-gradient(circle at 8% 20%, rgba(154,213,58,0.30) 0%, rgba(154,213,58,0) 45%),
+      radial-gradient(circle at 92% -10%, rgba(240,163,36,0.32) 0%, rgba(240,163,36,0) 50%),
+      radial-gradient(circle at 75% 100%, rgba(139,92,246,0.30) 0%, rgba(139,92,246,0) 55%),
+      linear-gradient(135deg,#0E2A52 0%, #123B5E 55%, #0E2A52 100%);
+    color:#EAF4F1;
+    padding:40px 32px 32px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-60px; top:-80px;
+    width:300px;height:300px;
+    border-radius:50%;
+    background:conic-gradient(from 90deg, #0EA99B, #9AD53A, #F0A324, #FF5D64, #8B5CF6, #0EA99B);
+    opacity:0.16;
+    filter:blur(6px);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    background:linear-gradient(90deg,#9AD53A,#0EA99B 60%,#3E8BFF);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    font-weight:600;
+    margin-bottom:8px;
+    position:relative;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:30px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+    position:relative;
+  }
+  .subtitle{
+    color:#B9C6E8;
+    font-size:14px;
+    position:relative;
+  }
+  main{max-width:900px;margin:0 auto;padding:28px 24px 60px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:700px){.grid{grid-template-columns:1fr;}}
+  a.card{
+    display:block;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px 22px 20px;
+    text-decoration:none;
+    color:var(--text);
+    position:relative;
+    overflow:hidden;
+    transition:transform .15s, box-shadow .15s;
+    box-shadow:0 1px 2px rgba(16,36,63,0.04);
+  }
+  a.card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 10px 24px rgba(16,36,63,0.12);
+  }
+  a.card::before{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:4px;
+    background:var(--bar,var(--teal));
+  }
+  .card:nth-child(1){--bar:var(--coral);}
+  .card:nth-child(2){--bar:var(--amber);}
+  .card-icon{font-size:26px;margin-bottom:10px;display:block;}
+  .card-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:17px;
+    color:var(--ink);
+    margin-bottom:6px;
+  }
+  .card-desc{font-size:13px;color:var(--text-mute);line-height:1.5;margin-bottom:14px;}
+  .card-cta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;font-weight:600;
+    color:#0B7A6E;
+    display:inline-flex;align-items:center;gap:4px;
+  }
+  footer{max-width:900px;margin:0 auto;padding:0 24px 40px;color:var(--text-mute);font-size:11.5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Field Sales · Coverage Tracking</div>
+  <h1>Danh sách Dashboard</h1>
+  <div class="subtitle">Bấm vào từng ô bên dưới để mở dashboard tương ứng</div>
+</header>
+
+<main>
+  <div class="grid">
+    <a class="card" href="index.html">
+      <span class="card-icon">📍</span>
+      <div class="card-title">Bao Phủ Thị Trường — Revive 1L</div>
+      <div class="card-desc">Bảng xếp hạng bao phủ 43 tuyến DCR, kỳ 01/07–31/07.</div>
+      <span class="card-cta">Mở dashboard →</span>
+    </a>
+    <a class="card" href="boost_tea.html">
+      <span class="card-icon">🥤</span>
+      <div class="card-title">Sting Boost · Tea+ · Gold Pro · Gói D/E</div>
+      <div class="card-desc">4 sản phẩm theo dõi tiến độ bao phủ &amp; D/E, kỳ 01/08–31/08.</div>
+      <span class="card-cta">Mở dashboard →</span>
+    </a>
+  </div>
+</main>
+
+<footer>Trang mục lục — bấm vào từng ô để mở dashboard chi tiết. Cập nhật thêm dashboard mới bằng cách thêm 1 ô vào file này.</footer>
+
+</body>
+</html>
