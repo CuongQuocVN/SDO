@@ -1601,7 +1601,7 @@ const DATA_BUILD_VERSION = '2026-08-24-daily-pulse-timeline';
 // same GitHub Pages link, on any device/browser, converges on the same
 // numbers instead of each browser only ever seeing its own local import.
 // Leave as '' to fall back to the old localStorage-only (per-browser) behavior.
-const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzjLwncWrhW5uEd93BkIOfJ_d6sEPSkaiweI0VvBGMxdcuGlB8SqbydReBrMq4WiQew/exec';
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycby1xkwyEBJY_zT7eCO458EkW8Pt0i1wgaoZcWGNjT_RwIcqmPR6zYTeVQvgaBVU7fmd4Q/exec';
 function isValidSavedPayload(parsed){
   return !!(parsed && parsed.version === DATA_BUILD_VERSION);
 }
@@ -1624,40 +1624,79 @@ function setSheetSyncBadge(state, when){
   el.style.display = '';
   if(state==='syncing'){ el.textContent = '⏳ Đang đồng bộ với Google Sheet...'; }
   else if(state==='synced'){ el.textContent = `☁ Đã đồng bộ chung lúc ${when?fmtDateTime(when):fmtDateTime(new Date().toISOString())}`; }
-  else if(state==='none'){ el.textContent = 'ℹ Chưa có dữ liệu chung trên Google Sheet — đang dùng dữ liệu gốc/local'; }
-  else { el.textContent = '⚠ Không kết nối được Google Sheet — đang dùng dữ liệu lưu trên trình duyệt này'; }
+  else if(state==='none'){ el.textContent = 'ℹ Sheet chưa có dữ liệu (chưa ai nhập/lưu thành công lần nào) — đang dùng dữ liệu gốc/local'; }
+  else { el.textContent = '⚠ Không gọi được tới Google Sheet (mạng/CORS/URL) — đang dùng dữ liệu lưu trên trình duyệt này. Mở F12 xem Console để biết chi tiết lỗi.'; }
 }
 // Pushes the current saved payload to the shared Google Sheet. Fire-and-forget
 // from the caller's perspective (saveStorage() doesn't await this) — a slow
 // or failed sync must never block the on-screen save/render, it only affects
 // whether OTHER devices see this update yet.
+//
+// Apps Script Web Apps don't send an Access-Control-Allow-Origin header on
+// their response, so a normal cross-origin fetch() from a GitHub Pages site
+// gets blocked by the browser even though the server DID receive and run the
+// request (verified: the POST shows up as HTTP 200 in the Network tab, the
+// browser just refuses to let JS read the response body). Fix: send with
+// mode:'no-cors' — the request still reaches Apps Script and still writes to
+// the Sheet, we just can't read a confirmation back, so a resolved fetch
+// promise here means "left the browser successfully", not "the sheet write
+// definitely succeeded".
 function pushToSheet(payload){
   if(!SHEET_API_URL) return;
   setSheetSyncBadge('syncing');
-  // text/plain avoids a CORS preflight (OPTIONS) request, which Apps Script
-  // Web Apps don't handle — a JSON content-type here would silently fail.
   fetch(SHEET_API_URL, {
     method: 'POST',
+    mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ key: STORAGE_KEY, value: JSON.stringify(payload) })
-  }).then(r=>r.json()).then(res=>{
-    if(res && res.ok) setSheetSyncBadge('synced', res.updatedAt);
-    else setSheetSyncBadge('error');
-  }).catch(err=>{ console.error('Lỗi đồng bộ lên Google Sheet:', err); setSheetSyncBadge('error'); });
+  }).then(()=>{
+    setSheetSyncBadge('synced', payload.updatedAt);
+  }).catch(err=>{ console.error('Lỗi gửi lên Google Sheet:', err); setSheetSyncBadge('error'); });
 }
-// Pulls the shared payload from the Google Sheet. Returns a Promise resolving
-// to the parsed payload, or null if there's nothing there yet / it's stale /
-// the request failed (network, org firewall, wrong URL, etc.) — every case
-// falls back gracefully to whatever this browser already has locally.
+// Pulls the shared payload from the Google Sheet via JSONP — a <script> tag
+// load, NOT fetch(). Same CORS wall as above blocks a GET fetch() from ever
+// letting JS read the response text, but <script src="..."> is exempt from
+// CORS entirely (that's literally what JSONP exploits), so this is the
+// reliable way to read cross-origin from an Apps Script Web App. Requires
+// AppsScript_Code_v3.gs's doGet() ?callback= support on the backend.
+// Resolves to { ok:true, data: <payload-or-null> } when the script loaded and
+// called back (data is null if the Sheet genuinely has nothing for this key
+// yet), or { ok:false, data:null } on a load error / timeout.
 function pullFromSheet(){
-  if(!SHEET_API_URL) return Promise.resolve(null);
-  const url = SHEET_API_URL + '?key=' + encodeURIComponent(STORAGE_KEY) + '&_=' + Date.now();
-  return fetch(url).then(r=>r.text()).then(text=>{
-    if(!text || text==='null') return null;
-    let parsed;
-    try{ parsed = JSON.parse(text); }catch(e){ return null; }
-    return isValidSavedPayload(parsed) ? parsed : null;
-  }).catch(err=>{ console.error('Không đọc được dữ liệu chung từ Google Sheet:', err); return null; });
+  if(!SHEET_API_URL) return Promise.resolve({ ok:true, data:null });
+  return new Promise(resolve=>{
+    const cbName = '__sheetSyncCb' + Date.now() + Math.floor(Math.random()*1e6);
+    let settled = false;
+    const script = document.createElement('script');
+    const cleanup = ()=>{
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    };
+    const timer = setTimeout(()=>{
+      if(settled) return;
+      settled = true;
+      cleanup();
+      console.error('Không gọi được tới Google Sheet (pull): hết thời gian chờ (timeout)');
+      resolve({ ok:false, data:null });
+    }, 10000);
+    window[cbName] = function(value){
+      if(settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve({ ok:true, data: (value && isValidSavedPayload(value)) ? value : null });
+    };
+    script.onerror = ()=>{
+      if(settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      console.error('Không gọi được tới Google Sheet (pull): lỗi tải script JSONP');
+      resolve({ ok:false, data:null });
+    };
+    script.src = SHEET_API_URL + '?key=' + encodeURIComponent(STORAGE_KEY) + '&callback=' + cbName + '&_=' + Date.now();
+    document.head.appendChild(script);
+  });
 }
 function saveStorage(){
   const payload = {
@@ -4345,7 +4384,8 @@ renderAll();
 // numbers as every other device/browser using the same GitHub Pages link.
 // Runs async on purpose: never block first paint on a network round-trip.
 setSheetSyncBadge('syncing');
-pullFromSheet().then(remote=>{
+pullFromSheet().then(result=>{
+  const remote = result && result.data;
   if(remote){
     applyStorage(remote);
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); }catch(e){}
@@ -4353,6 +4393,8 @@ pullFromSheet().then(remote=>{
     updateBadge();
     renderAll();
     setSheetSyncBadge('synced', remote.updatedAt);
+  } else if(!result || !result.ok){
+    setSheetSyncBadge('error');
   } else if(SHEET_API_URL){
     setSheetSyncBadge('none');
   }
